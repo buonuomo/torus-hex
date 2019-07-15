@@ -21,10 +21,10 @@ draw (World {..}) = pure . uncurry scale scaling . uncurry translate coords $ ti
 
 update :: Event -> World -> IO World
 --update (EventResize (dx, dy)) (World (x, y)) = pure (World ((x + fromIntegral dx), (y + fromIntegral dy)))
-update (EventKey (SpecialKey KeyLeft) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = (x + 10 / sx, y)})
-update (EventKey (SpecialKey KeyRight) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = (x - 10 / sx, y)})
-update (EventKey (SpecialKey KeyDown) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = (x, y + 10 / sy)})
-update (EventKey (SpecialKey KeyUp) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = (x, y - 10 / sy)})
+update (EventKey (SpecialKey KeyLeft) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = normalize (x + 10 / sx, y)})
+update (EventKey (SpecialKey KeyRight) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = normalize (x - 10 / sx, y)})
+update (EventKey (SpecialKey KeyDown) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = normalize (x, y + 10 / sy)})
+update (EventKey (SpecialKey KeyUp) Down _ _) w@(World { coords = (x, y), scaling = (sx, sy)}) = pure (w { coords = normalize (x, y - 10 / sy)})
 update (EventKey (MouseButton LeftButton) Down _ location) w = pure $ w { mouseDown = Just location, dragPos = location }
 update (EventKey (MouseButton LeftButton) Up _ location) w@(World{coords = (x,y),..}) =
    case mouseDown of
@@ -42,8 +42,16 @@ update (EventMotion (dx, dy)) w@(World {coords = (x,y),..}) =
       Just (downx, downy) ->
         let (dpx, dpy) = dragPos
             (sx, sy) = scaling
-         in pure $ w { coords = (x - (dpx - dx)/(2 * sx), y - (dpy - dy)/(2 * sy)), dragPos = (dx, dy) }
+         in pure $ w { coords = normalize (x - (dpx - dx)/(2 * sx), y - (dpy - dy)/(2 * sy)), dragPos = (dx, dy) }
 update _ w = pure w
+
+normalize :: (Float, Float) -> (Float, Float)
+normalize (x, y)
+  | x > boardWidth = normalize (x - boardWidth, y)
+  | x < -boardWidth = normalize (-x - boardWidth, y)
+  | y > boardHeight = normalize (x, y - boardHeight)
+  | y < -boardHeight = normalize (x, -y + boardHeight)
+  | otherwise = (x, y)
 
 control :: Controller -> IO ()
 control = const (pure ())
@@ -68,7 +76,14 @@ borderBoard =  color black (translate (-10 * cos (pi / 6)) (-10 * sin (pi / 6)) 
         d = 5 / sqrt 3 + 5 * sqrt 3
 
 lattice :: [(Float, Float)]
-lattice = (,) <$> [-5..4] <*> [-3..2]
+lattice = (,) <$> [-6..5] <*> [-4..3]
+
+boardWidth :: Float
+boardWidth = 11 * 18.3205
+
+-- TODO: This is wrong
+boardHeight :: Float
+boardHeight = 11 * 15.866 + 5.866
 
 skew :: (Float, Float) -> (Float, Float)
 skew (x,y) = (c*x + a*y, b*y)
