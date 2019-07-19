@@ -30,7 +30,8 @@ initWorld screen = World
     , mouseDown = Nothing
     , dragPos = (0,0)
     , currentPlayer = PlayerWhite
-    , board = array ((0, 0), (10, 10)) [((i, j), Empty) | i <- [1..10], j <- [1..10]]
+    , board = array ((0, 0), (10, 10)) [((i, j), Empty) | i <- [0..10], j <- [0..10]]
+    , debug = ""
     }
 
 data World = World 
@@ -41,4 +42,5 @@ data World = World
     , dragPos :: (Float, Float)
     , currentPlayer :: Player
     , board :: Board
+    , debug :: String
     } deriving (Show, Eq)

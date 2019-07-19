@@ -6,6 +6,8 @@ import Constants
 import Model
 
 import Control.Arrow ((&&&))
+import Data.Array
+import Data.Bifunctor
 import Data.Complex
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
@@ -13,32 +15,46 @@ import Graphics.Gloss.Interface.IO.Interact
 (<>) = mappend
 
 draw :: World -> IO Picture
-draw (World {..}) = pure $ (uncurry scale scaling . uncurry translate coords $ tiling)
+draw (World {..}) = pure $ (uncurry scale scaling . uncurry translate coords $ tiling board)
 
 shearTile :: (Float, Float) -> (Float, Float)
 shearTile (x, y) = (a*x + b*y, c*y)
   where
-    a = 10 * sqrt 3 + 1
+    a = rad * sqrt 3 + 1
     b = a / 2
-    c = 15
+    c = 15.866
 
 -- | draw a board at each point in the lattice
-tiling :: Picture
-tiling = pictures 
-       . map (\(x,y) -> translate x y (borderBoard rad spc)) 
-       . map shearBoard
-       $ lattice
+tiling :: Board -> Picture
+tiling board = pictures 
+             . map (\(x,y) -> translate x y (boardWithTiles rad spc board)) 
+             . map shearBoard
+             $ lattice
+
+boardWithTiles :: Float -> Float -> Board -> Picture
+boardWithTiles r s board = borderBoard r s <> tiles
+  where
+      tiles = pictures 
+            . map (\(i,e) -> drawTile (shearTile (bimap fromIntegral fromIntegral i)) e)
+            . assocs 
+            $ board
+
+drawTile :: (Float, Float) -> Tile -> Picture
+drawTile _ Empty = blank
+drawTile coords Black = color black (uncurry translate coords (circle (rad / 2)))
+drawTile coords White = color white (uncurry translate coords (circle (rad / 2)))
 
 shearBoard :: (Float, Float) -> (Float, Float)
-shearBoard (x,y) = (c*x + a*y, b*y)
+shearBoard (x,y) = (a*x + b*y, c*y)
   where
-      c = 11 * (2 * rad * cos (pi / 6) + spc)
-      -- b = 11 * 15.866
-      b = 11 * (1.5 * rad + spc)
-      a = 11 * (c / 2)
+      a = 11 * (2 * rad * cos (pi / 6) + spc)
+      c = 11 * 15.866 -- TODO
+      --c = 11 * (1.5 * rad + spc)
+      b = 11 * (rad * cos (pi / 6) + spc / 2)
 
 -- | square unit lattice corresponding to the boards we need to show
 lattice :: [(Float, Float)]
+--lattice = (,) <$> [-8..8] <*> [-4..3]
 lattice = (,) <$> [-6..5] <*> [-4..3]
 
 -- | board with the border
@@ -47,7 +63,7 @@ borderBoard r s =
     color black 
       (translate (-r * cos (pi / 6)) (-r * sin (pi / 6)) 
         (background r s)) <>
-    color white 
+    color orange
       (boardWithSpace r s)
 
 -- | a rhombus that goes behind the board to serve as the background

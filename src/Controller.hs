@@ -51,9 +51,11 @@ update _ w = pure w
 -- accordingly
 placeTile :: (Int, Int) -> World -> World
 placeTile coord w@World{..} = w
-    { board = put coord currentPlayer board
+    { --board = put coord currentPlayer board
+    board = put coord currentPlayer board
     , currentPlayer = nextPlayer currentPlayer
     , mouseDown = Nothing
+    , debug = show board
     }
     where
         -- | put a tile of the given color at the given coords
@@ -77,9 +79,16 @@ toHex World{..} loc = hexRound
 deshearTile :: (Float, Float) -> (Float, Float)
 deshearTile (x,y) = ((x - b * y / c)/a, y/c)
   where
-    a = 10 * sqrt 3 + 1
+    a = rad * sqrt 3 + 1
     b = a / 2
-    c = 15
+    c = 15.866
+
+shearTile :: (Float, Float) -> (Float, Float)
+shearTile (x, y) = (a*x + b*y, c*y)
+  where
+    a = rad * sqrt 3 + 1
+    b = a / 2
+    c = 15.866
 
 -- | given a fractional hex coord, turn into integer
 hexRound :: (Float, Float) -> Maybe (Int, Int)
@@ -88,10 +97,11 @@ hexRound (x,y) = let options = [ (floor x, floor y)
                                , (ceiling x, floor y)
                                , (ceiling x, ceiling y)
                                ]
-                     floptions = map (bimap fromIntegral fromIntegral) options
-                     closest =  minimumBy (comparing (euclidDist (x, y))) floptions
+                     floptions = map (shearTile . bimap fromIntegral fromIntegral) options
+                     point = shearTile (x, y)
+                     closest =  minimumBy (comparing (euclidDist point)) floptions
                   in
-                    if hexDist closest (x, y) <= rad then Just (bimap round round closest) else Nothing
+                    if hexDist closest point <= rad then Just (bimap round round (deshearTile closest)) else Nothing
    where
       euclidDist :: (Floating b) => (b, b) -> (b, b) -> b
       euclidDist (a, b) (x, y) = sqrt ((a - x)^2 + (b - y)^2)
@@ -102,9 +112,9 @@ hexRound (x,y) = let options = [ (floor x, floor y)
                   if 0 <= θ  && θ <= pi / 3 
                      then  r * sin (2/3 * pi - θ) / sin (pi / 3)
                      else  f (θ - pi / 3) r
-           in f θ r
-          where r = euclidDist (a, b) (x, y)
-                θ = atan ((x - a) / (y - b))
+           in f radius angle
+          where radius = euclidDist (a, b) (x, y)
+                angle = atan ((x - a) / (y - b))
 
 normalize :: (Float, Float) -> (Float, Float)
 normalize (x, y)
@@ -116,6 +126,7 @@ normalize (x, y)
   where
       boardWidth = 11 * (2 * rad * cos (pi / 6) + spc)
       -- TODO: maybe tweak a bit
-      boardHeight = 11 * (1.5 * rad + spc)
+      -- boardHeight = 11 * (1.5 * rad + spc)
+      boardHeight = 11 * 15.866
       -- This might also just be boardWidth / 2
-      boardSkew = 11 * (rad * cos (pi / 6) + spc)
+      boardSkew = 11 * (rad * cos (pi / 6) + spc / 2)
